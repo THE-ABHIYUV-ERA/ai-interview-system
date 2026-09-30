@@ -36,3 +36,23 @@ An intelligent interview system with an AI interviewer avatar.
 - Python (3.10+)
 - PostgreSQL
 - Git
+
+## Local OAuth Setup
+
+To enable Google and GitHub authentication locally, you must configure OAuth applications with each provider.
+
+### Google OAuth
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
+2. Create a new project and configure the OAuth consent screen.
+3. Go to Credentials > Create Credentials > OAuth client ID.
+4. Set Authorized JavaScript origins to http://localhost:3000.
+5. Set Authorized redirect URIs to http://localhost:3000/auth/callback/google.
+6. Copy the generated Client ID and Client Secret into your frontend and backend .env files respectively.
+
+### GitHub OAuth
+1. Go to your GitHub account Settings > Developer Settings > OAuth Apps.
+2. Click "New OAuth App".
+3. Set Homepage URL to http://localhost:3000.
+4. Set Authorization callback URL to http://localhost:3000/auth/callback/github.
+5. Generate a new Client Secret.
+6. Copy the Client ID and Client Secret into your .env files.
