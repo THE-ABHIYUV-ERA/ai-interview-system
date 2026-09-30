@@ -1,0 +1,7 @@
+version: '3.8'
+
+services:
+  # Services will be configured later
+  placeholder:
+    image: alpine
+    command: echo "Setup pending"
