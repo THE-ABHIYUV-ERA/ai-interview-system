@@ -119,3 +119,39 @@ class ResumeAPITests(APITestCase):
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['results'], [])
+
+    def test_upload_resume(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_authenticate(user=self.candidate_a)
+        
+        pdf_content = b'%PDF-1.4\n%...\n'
+        file = SimpleUploadedFile("test_upload.pdf", pdf_content, content_type="application/pdf")
+        
+        response = self.client.post('/api/resumes/upload/', {'file': file}, format='multipart')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['original_filename'], 'test_upload.pdf')
+        self.assertEqual(response.data['status'], 'uploaded')
+        
+        resume = Resume.objects.get(id=response.data['id'])
+        self.assertEqual(resume.candidate, self.candidate_a)
+        
+    def test_upload_invalid_file_type(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_authenticate(user=self.candidate_a)
+        
+        file = SimpleUploadedFile("test.txt", b'hello world', content_type="text/plain")
+        response = self.client.post('/api/resumes/upload/', {'file': file}, format='multipart')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Only PDF resume files", response.data['error'])
+        
+    def test_upload_invalid_signature(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_authenticate(user=self.candidate_a)
+        
+        file = SimpleUploadedFile("test.pdf", b'hello world', content_type="application/pdf")
+        response = self.client.post('/api/resumes/upload/', {'file': file}, format='multipart')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Only PDF resume files", response.data['error'])
