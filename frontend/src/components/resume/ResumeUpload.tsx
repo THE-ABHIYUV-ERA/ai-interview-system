@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UploadCloud, FileText, CheckCircle, AlertCircle, X, Loader2, RefreshCw } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle, AlertCircle, X, Loader2, RefreshCw, Edit2 } from 'lucide-react';
 import api from '@/lib/api';
 import { Resume } from '@/types/resume';
+import { ResumeEditForm } from './ResumeEditForm';
+import { AIInsights } from './AIInsights';
 
 type UploadState = 'IDLE' | 'FILE_SELECTED' | 'UPLOADING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 
@@ -11,6 +13,7 @@ export function ResumeUpload() {
   const [error, setError] = useState<string | null>(null);
   const [existingResume, setExistingResume] = useState<Resume | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -173,7 +176,16 @@ export function ResumeUpload() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Existing Resume Section */}
-      {existingResume && state !== 'UPLOADING' && state !== 'PROCESSING' && (
+      {existingResume && isEditing && state === 'COMPLETED' ? (
+        <ResumeEditForm
+           resume={existingResume}
+           onSave={(updatedResume) => {
+             setExistingResume(updatedResume);
+             setIsEditing(false);
+           }}
+           onCancel={() => setIsEditing(false)}
+        />
+      ) : existingResume && state !== 'UPLOADING' && state !== 'PROCESSING' && (
         <div className="bg-[#11111A] border border-white/10 rounded-xl p-6">
           <h3 className="text-lg font-medium text-white mb-4">Current Resume</h3>
           <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
@@ -235,9 +247,18 @@ export function ResumeUpload() {
           )}
 
           <div className="mt-6 flex items-center justify-end space-x-4">
+             {state === 'COMPLETED' && existingResume.parsed_data && Object.keys(existingResume.parsed_data).length > 0 && (
+               <button
+                 onClick={() => setIsEditing(true)}
+                 className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2"
+               >
+                 <Edit2 className="w-4 h-4" />
+                 <span>Edit Resume</span>
+               </button>
+             )}
              <button
                onClick={handleDelete}
-               className="text-sm text-red-400 hover:text-red-300 transition-colors"
+               className="text-sm text-red-400 hover:text-red-300 transition-colors ml-auto"
              >
                Delete Resume
              </button>
@@ -249,6 +270,10 @@ export function ResumeUpload() {
              </button>
           </div>
         </div>
+      )}
+
+      {existingResume && !isEditing && state === 'COMPLETED' && (
+        <AIInsights resume={existingResume} onUpdate={setExistingResume} />
       )}
 
       {/* Upload Section */}

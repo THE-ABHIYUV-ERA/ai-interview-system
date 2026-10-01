@@ -7,11 +7,13 @@ class ResumeSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'original_filename', 'file_size', 'mime_type',
             'extracted_text', 'parsed_data', 'status', 'error_message',
+            'ai_analysis', 'analysis_status',
             'uploaded_at', 'updated_at'
         )
         read_only_fields = (
             'id', 'original_filename', 'file_size', 'mime_type',
             'extracted_text', 'status', 'error_message',
+            'ai_analysis', 'analysis_status',
             'uploaded_at', 'updated_at'
         )
     

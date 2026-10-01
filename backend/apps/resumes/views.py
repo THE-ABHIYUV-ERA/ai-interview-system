@@ -73,3 +73,59 @@ class ResumeViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(resume)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def analyze(self, request, pk=None):
+        resume = self.get_object()
+        
+        if resume.status != 'completed':
+            return Response(
+                {"error": "Resume must have completed extraction before analysis."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if not resume.extracted_text:
+            return Response(
+                {"error": "Resume has no extracted text to analyze."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if resume.analysis_status == 'processing':
+            return Response(
+                {"error": "Resume analysis is already processing."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if resume.analysis_status == 'completed':
+            return Response(
+                {"message": "Resume analysis is already completed."},
+                status=status.HTTP_200_OK
+            )
+            
+        resume.analysis_status = 'processing'
+        resume.save()
+        
+        # We process synchronously for simplicity, or we can spawn a thread
+        import threading
+        from apps.ai_services.resume_analyzer import analyze_resume, ResumeAnalysisError
+        
+        def run_analysis():
+            try:
+                analysis_result = analyze_resume(resume.extracted_text, resume.parsed_data)
+                resume.ai_analysis = analysis_result
+                resume.analysis_status = 'completed'
+                resume.error_message = ''
+                resume.save()
+            except ResumeAnalysisError as e:
+                resume.analysis_status = 'failed'
+                resume.error_message = str(e)
+                resume.save()
+            except Exception as e:
+                resume.analysis_status = 'failed'
+                resume.error_message = "Resume analysis is temporarily unavailable. Please try again."
+                resume.save()
+                
+        thread = threading.Thread(target=run_analysis)
+        thread.start()
+        
+        return Response({"message": "Analysis started.", "status": "processing"}, status=status.HTTP_202_ACCEPTED)

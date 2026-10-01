@@ -18,6 +18,13 @@ class Resume(models.Model):
         ('failed', 'failed'),
     )
 
+    ANALYSIS_STATUS_CHOICES = (
+        ('pending', 'pending'),
+        ('processing', 'processing'),
+        ('completed', 'completed'),
+        ('failed', 'failed'),
+    )
+
     candidate = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -31,6 +38,10 @@ class Resume(models.Model):
     parsed_data = models.JSONField(default=dict)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='uploaded')
     error_message = models.TextField(blank=True, null=True)
+    
+    ai_analysis = models.JSONField(default=dict, blank=True)
+    analysis_status = models.CharField(max_length=20, choices=ANALYSIS_STATUS_CHOICES, default='pending')
+    
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
