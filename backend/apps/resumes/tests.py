@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
+from unittest.mock import patch
 from .models import Resume
 
 User = get_user_model()
@@ -120,7 +121,9 @@ class ResumeAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['results'], [])
 
-    def test_upload_resume(self):
+    @patch('apps.resumes.views.extract_text_from_pdf')
+    def test_upload_resume(self, mock_extract):
+        mock_extract.return_value = "Extracted text content"
         from django.core.files.uploadedfile import SimpleUploadedFile
         self.client.force_authenticate(user=self.candidate_a)
         
@@ -131,10 +134,27 @@ class ResumeAPITests(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['original_filename'], 'test_upload.pdf')
-        self.assertEqual(response.data['status'], 'uploaded')
+        self.assertEqual(response.data['status'], 'completed')
         
         resume = Resume.objects.get(id=response.data['id'])
         self.assertEqual(resume.candidate, self.candidate_a)
+        self.assertEqual(resume.extracted_text, "Extracted text content")
+        
+    @patch('apps.resumes.views.extract_text_from_pdf')
+    def test_upload_resume_extraction_failure(self, mock_extract):
+        from apps.resumes.services import ResumePDFExtractionError
+        mock_extract.side_effect = ResumePDFExtractionError("Extraction failed")
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_authenticate(user=self.candidate_a)
+        
+        pdf_content = b'%PDF-1.4\n%...\n'
+        file = SimpleUploadedFile("test_fail.pdf", pdf_content, content_type="application/pdf")
+        
+        response = self.client.post('/api/resumes/upload/', {'file': file}, format='multipart')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], 'failed')
+        self.assertEqual(response.data['error_message'], 'Extraction failed')
         
     def test_upload_invalid_file_type(self):
         from django.core.files.uploadedfile import SimpleUploadedFile
