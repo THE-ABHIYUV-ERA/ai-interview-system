@@ -199,6 +199,41 @@ export function ResumeUpload() {
             </div>
           )}
 
+          {state === 'COMPLETED' && (
+            <div className="mt-6 border-t border-white/10 pt-6">
+              {existingResume.parsed_data && Object.keys(existingResume.parsed_data).length > 0 ? (
+                <div className="space-y-6">
+                  <h4 className="text-white font-medium">Parsed Resume Details</h4>
+                  <div className="grid grid-cols-1 gap-6">
+                    {Object.entries(existingResume.parsed_data).map(([key, value]) => {
+                      if (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'object' && Object.keys(value).length === 0)) return null;
+                      const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                      return (
+                        <div key={key} className="space-y-2">
+                          <h5 className="text-gray-300 font-medium text-sm">{formattedKey}</h5>
+                          <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-sm text-gray-400 whitespace-pre-wrap overflow-x-auto">
+                            {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : existingResume.extracted_text ? (
+                <div className="space-y-4">
+                  <h4 className="text-white font-medium">Extracted Resume Text</h4>
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-sm text-gray-300 whitespace-pre-wrap max-h-[500px] overflow-y-auto leading-relaxed">
+                    {existingResume.extracted_text}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-white/5 rounded-lg border border-white/10 text-center">
+                   <p className="text-gray-400 text-sm">No readable text could be extracted from this resume.</p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="mt-6 flex items-center justify-end space-x-4">
              <button
                onClick={handleDelete}
