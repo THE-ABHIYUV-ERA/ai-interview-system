@@ -54,10 +54,10 @@ export function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean, se
         <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm shrink-0">
-              {user?.username?.charAt(0).toUpperCase() || 'U'}
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="overflow-hidden">
-              <p className="text-sm font-medium text-white truncate">{user?.username || 'User'}</p>
+              <p className="text-sm font-medium text-white truncate">{user?.name || 'User'}</p>
               <p className="text-xs text-white/40 truncate">{user?.email || 'user@example.com'}</p>
             </div>
           </div>

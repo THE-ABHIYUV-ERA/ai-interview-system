@@ -8,7 +8,7 @@ import Link from "next/link";
 
 export function WelcomeSection() {
   const { user } = useAuth();
-  const firstName = user?.username?.split(' ')[0] || 'Candidate';
+  const firstName = user?.name?.split(' ')[0] || 'Candidate';
 
   return (
     <motion.div 

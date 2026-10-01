@@ -19,7 +19,7 @@ export function StartInterviewCard() {
       <div className="relative z-10 max-w-xl">
         <h3 className="text-2xl font-semibold text-white mb-3">Ready for your next interview?</h3>
         <p className="text-white/60 mb-6 leading-relaxed">
-          Practice with your AI interviewer using questions tailored to your skills and target role. The more you practice, the more confident you'll become.
+          Practice with your AI interviewer using questions tailored to your skills and target role. The more you practice, the more confident you&apos;ll become.
         </p>
         <Link href="/dashboard/setup">
           <Button className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-[0_0_20px_rgba(37,99,235,0.2)]">

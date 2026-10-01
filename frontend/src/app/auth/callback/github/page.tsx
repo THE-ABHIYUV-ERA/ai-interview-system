@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, Suspense } from "react";
+import React, { useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
@@ -8,9 +8,11 @@ function GithubCallbackContent() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
   const code = searchParams.get("code");
+  const called = React.useRef(false);
 
   useEffect(() => {
-    if (code) {
+    if (code && !called.current) {
+      called.current = true;
       api.post("/auth/github/", { code })
         .then(res => {
           login(res.data.access, res.data.refresh, res.data.user);

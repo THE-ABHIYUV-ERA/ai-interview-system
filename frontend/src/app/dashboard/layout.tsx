@@ -9,19 +9,14 @@ import { Loader2 } from "lucide-react";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/login");
-      } else {
-        setIsReady(true);
-      }
+    if (!loading && !user) {
+      router.push("/login");
     }
   }, [user, loading, router]);
 
-  if (loading || !isReady) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-[#050508] flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
