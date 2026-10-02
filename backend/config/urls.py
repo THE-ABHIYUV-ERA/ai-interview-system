@@ -9,6 +9,7 @@ urlpatterns = [
     path('api/', include('apps.core.urls')),
     path('api/', include('apps.accounts.urls')),
     path('api/resumes/', include('apps.resumes.urls')),
+    path('api/interviews/', include('apps.interviews.urls')),
 ]
 
 if settings.DEBUG:
