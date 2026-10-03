@@ -11,7 +11,9 @@ import {
   NextQuestionResponse
 } from "@/types/interview";
 import { Button } from "@/components/ui/button";
-import { Play, LogOut, CheckCircle2, Clock, Brain, Loader2 } from "lucide-react";
+import { Play, LogOut, CheckCircle2, Clock, Brain, Loader2, Mic, MicOff, Volume2, Square } from "lucide-react";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 
 export default function LiveInterviewRoom() {
   const params = useParams();
@@ -127,6 +129,28 @@ export default function LiveInterviewRoom() {
 
   const [answerStartTime, setAnswerStartTime] = useState<number | null>(null);
 
+  const { supported: synthSupported, speaking, speak, stop: stopSpeaking } = useSpeechSynthesis();
+  
+  const handleSpeechResult = (text: string, isFinal: boolean) => {
+    if (isFinal) {
+      setAnswerText((prev) => {
+        const spacer = prev && !prev.endsWith(' ') ? ' ' : '';
+        const newText = prev + spacer + text;
+        
+        // Save to local storage manually here since handleAnswerChange isn't called directly
+        if (question && interview && user) {
+          const draftKey = `interview_draft_${user.id}_${interview.id}_${question.id}`;
+          localStorage.setItem(draftKey, newText);
+        }
+        return newText;
+      });
+    }
+  };
+
+  const { supported: recoSupported, listening, error: recoError, start: startListening, stop: stopListening } = useSpeechRecognition({
+    onResult: handleSpeechResult
+  });
+
   // Load draft from localStorage on mount and when question changes
   useEffect(() => {
     if (question && interview && user) {
@@ -138,8 +162,12 @@ export default function LiveInterviewRoom() {
         setAnswerText("");
       }
       setAnswerStartTime(Date.now());
+      
+      // Stop ongoing voice operations on new question
+      stopSpeaking();
+      stopListening();
     }
-  }, [question, interview, user]);
+  }, [question, interview, user, stopSpeaking, stopListening]);
 
   // Save draft on change
   const handleAnswerChange = (text: string) => {
@@ -172,6 +200,8 @@ export default function LiveInterviewRoom() {
   const submitAnswer = async () => {
     if (!answerText.trim() || !question) return;
     
+    stopListening();
+    
     try {
       setSubmitting(true);
       setError(null);
@@ -201,6 +231,8 @@ export default function LiveInterviewRoom() {
   const handleExit = () => {
     if (interview?.status === "in_progress") {
       if (confirm("Are you sure you want to exit? Your progress is saved, but you may lose your current unsaved answer.")) {
+        stopSpeaking();
+        stopListening();
         router.push("/dashboard");
       }
     } else {
@@ -320,16 +352,57 @@ export default function LiveInterviewRoom() {
             {/* Question Card */}
             <div className="rounded-lg shadow-sm border border-blue-100 dark:border-blue-900/30 bg-white dark:bg-zinc-950 text-card-foreground">
               <div className="p-6">
-                <p className="text-xl leading-relaxed font-medium">
-                  {question.question_text}
-                </p>
+                <div className="flex items-start justify-between gap-4">
+                  <p className="text-xl leading-relaxed font-medium flex-1">
+                    {question.question_text}
+                  </p>
+                  
+                  {synthSupported && (
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => speaking ? stopSpeaking() : speak(question.question_text)}
+                      className="shrink-0 rounded-full h-10 w-10 text-blue-500 hover:text-blue-600 hover:bg-blue-50"
+                      title={speaking ? "Stop speaking" : "Read question aloud"}
+                      aria-label={speaking ? "Stop speaking" : "Read question aloud"}
+                      disabled={submitting || nextQuestionLoading}
+                    >
+                      {speaking ? <Square className="h-4 w-4" fill="currentColor" /> : <Volume2 className="h-4 w-4" />}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Answer Area */}
             <div className="flex-1 flex flex-col gap-3 min-h-[200px]">
+              
+              {recoError && (
+                <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-100">
+                  {recoError}
+                </div>
+              )}
+              
               <div className="flex justify-between items-end">
-                <label htmlFor="answer" className="sr-only">Your Answer</label>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="answer" className="sr-only">Your Answer</label>
+                  {recoSupported ? (
+                    <Button
+                      variant={listening ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => listening ? stopListening() : startListening()}
+                      className={`gap-2 ${listening ? "bg-red-500 hover:bg-red-600 text-white animate-pulse" : "text-gray-600"}`}
+                      disabled={submitting || nextQuestionLoading}
+                      aria-label={listening ? "Stop voice input" : "Start voice input"}
+                      aria-pressed={listening}
+                    >
+                      {listening ? <Square className="h-4 w-4" fill="currentColor" /> : <Mic className="h-4 w-4" />}
+                      {listening ? "Listening..." : "Start speaking"}
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-gray-400">Voice input not supported in this browser.</span>
+                  )}
+                </div>
                 <span className={`text-xs ${answerText.length > 19000 ? 'text-orange-500' : 'text-gray-400'}`}>
                   {answerText.length} / 20000 chars
                 </span>
