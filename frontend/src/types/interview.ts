@@ -27,3 +27,32 @@ export interface InterviewConfiguration {
   difficulty: Difficulty;
   duration_minutes: number;
 }
+
+export interface InterviewQuestion {
+  id: number;
+  sequence_number: number;
+  question_text: string;
+  question_type: string;
+  category: string;
+  difficulty: string;
+  expected_duration_seconds: number;
+  has_answer?: boolean;
+}
+
+export interface InterviewAnswer {
+  id: number;
+  question: number;
+  answer_text: string;
+}
+
+export interface InterviewProgress {
+  current: number;
+  total: number;
+  answered: number;
+}
+
+export interface NextQuestionResponse {
+  status: string;
+  question: InterviewQuestion;
+  progress: InterviewProgress;
+}
