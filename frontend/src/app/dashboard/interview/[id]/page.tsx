@@ -125,6 +125,50 @@ export default function LiveInterviewRoom() {
     }
   };
 
+  const [answerStartTime, setAnswerStartTime] = useState<number | null>(null);
+
+  // Load draft from localStorage on mount and when question changes
+  useEffect(() => {
+    if (question && interview && user) {
+      const draftKey = `interview_draft_${user.id}_${interview.id}_${question.id}`;
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        setAnswerText(savedDraft);
+      } else {
+        setAnswerText("");
+      }
+      setAnswerStartTime(Date.now());
+    }
+  }, [question, interview, user]);
+
+  // Save draft on change
+  const handleAnswerChange = (text: string) => {
+    setAnswerText(text);
+    if (question && interview && user) {
+      const draftKey = `interview_draft_${user.id}_${interview.id}_${question.id}`;
+      localStorage.setItem(draftKey, text);
+    }
+  };
+
+  const clearDraft = () => {
+    if (question && interview && user) {
+      const draftKey = `interview_draft_${user.id}_${interview.id}_${question.id}`;
+      localStorage.removeItem(draftKey);
+    }
+  };
+
+  useEffect(() => {
+    // Navigation warning if draft exists
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (answerText.trim() && !submitting) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [answerText, submitting]);
+
   const submitAnswer = async () => {
     if (!answerText.trim() || !question) return;
     
@@ -132,14 +176,23 @@ export default function LiveInterviewRoom() {
       setSubmitting(true);
       setError(null);
       
+      const durationSeconds = answerStartTime 
+        ? Math.floor((Date.now() - answerStartTime) / 1000)
+        : 0;
+      
       await api.post(
         `/interviews/${params.id}/questions/${question.id}/answer/`,
-        { answer_text: answerText }
+        { 
+          answer_text: answerText,
+          duration_seconds: durationSeconds
+        }
       );
       
+      clearDraft();
       await fetchNextQuestion();
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.response?.data?.error || "Failed to submit answer. Please try again.");
+      // Don't clear answer on error so candidate can retry
+      setError(err.response?.data?.detail || err.response?.data?.error || "Your answer was not submitted. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -275,14 +328,20 @@ export default function LiveInterviewRoom() {
 
             {/* Answer Area */}
             <div className="flex-1 flex flex-col gap-3 min-h-[200px]">
-              <label htmlFor="answer" className="sr-only">Your Answer</label>
+              <div className="flex justify-between items-end">
+                <label htmlFor="answer" className="sr-only">Your Answer</label>
+                <span className={`text-xs ${answerText.length > 19000 ? 'text-orange-500' : 'text-gray-400'}`}>
+                  {answerText.length} / 20000 chars
+                </span>
+              </div>
               <textarea 
                 id="answer"
                 value={answerText}
-                onChange={(e) => setAnswerText(e.target.value)}
+                onChange={(e) => handleAnswerChange(e.target.value)}
                 placeholder="Type your answer here... Be detailed and specific."
                 className="flex-1 w-full rounded-md border border-input bg-transparent text-base p-4 resize-none shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={submitting || nextQuestionLoading}
+                maxLength={20000}
               />
               
               <div className="flex justify-end">

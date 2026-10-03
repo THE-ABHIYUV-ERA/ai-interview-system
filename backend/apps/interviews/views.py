@@ -177,24 +177,36 @@ class InterviewAnswerView(APIView):
             return Response({"detail": "Can only submit answers when interview is in progress."}, status=status.HTTP_400_BAD_REQUEST)
         
         if hasattr(question, 'answer'):
-            return Response({"detail": "Answer already exists. Use PATCH to update."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "This answer has already been submitted."}, status=status.HTTP_409_CONFLICT)
 
         serializer = InterviewAnswerSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(question=question)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                from django.db import IntegrityError, transaction
+                with transaction.atomic():
+                    # Check again inside transaction to prevent race conditions
+                    if hasattr(question, 'answer'):
+                        return Response({"detail": "This answer has already been submitted."}, status=status.HTTP_409_CONFLICT)
+                        
+                    # Calculate duration safely if start time is provided, or rely on client if bounded
+                    duration = serializer.validated_data.get('duration_seconds', 0)
+                    if duration < 0 or duration > 3600:
+                        duration = 0 # Fallback for invalid client input
+                    
+                    answer = serializer.save(
+                        question=question, 
+                        submitted_at=timezone.now(),
+                        duration_seconds=duration
+                    )
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except IntegrityError:
+                return Response({"detail": "This answer has already been submitted."}, status=status.HTTP_409_CONFLICT)
+            except Exception as e:
+                return Response({"detail": "Something went wrong while saving your answer."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def patch(self, request, interview_id, question_id):
-        question = self.get_question(request, interview_id, question_id)
-        if question.interview.status != 'in_progress':
-            return Response({"detail": "Can only update answers when interview is in progress."}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not hasattr(question, 'answer'):
-            return Response({"detail": "No answer exists to update. Use POST first."}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = InterviewAnswerSerializer(question.answer, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # We can disable modification of submitted answers as per spec:
+        # "prevent editing the submitted answer"
+        return Response({"detail": "Editing submitted answers is not permitted."}, status=status.HTTP_403_FORBIDDEN)
