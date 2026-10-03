@@ -186,3 +186,43 @@ class InterviewSessionTests(APITestCase):
         # Try generating again
         gen_res2 = self.client.post(f'/api/interviews/{interview_id}/generate-questions/')
         self.assertEqual(gen_res2.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_next_question(self):
+        self.client.force_authenticate(user=self.user1)
+        self.resume1.extracted_text = 'Skills: Python'
+        self.resume1.save()
+        
+        data = {
+            'resume': self.resume1.id,
+            'job_role': 'Frontend Developer',
+            'experience_level': 'mid',
+            'interview_type': 'technical',
+            'difficulty': 'medium',
+            'duration_minutes': 15 # 5 questions
+        }
+        create_res = self.client.post('/api/interviews/', data)
+        interview_id = create_res.data['id']
+        
+        # Start it
+        self.client.post(f'/api/interviews/{interview_id}/start/')
+        
+        # Get next question (should generate Q1 adaptively since there are no pre-generated ones)
+        next_res = self.client.post(f'/api/interviews/{interview_id}/next-question/')
+        self.assertEqual(next_res.status_code, 200)
+        q1_id = next_res.data['question']['id']
+        self.assertEqual(next_res.data['question']['sequence_number'], 1)
+        self.assertEqual(next_res.data['progress']['total'], 5)
+        
+        # Calling again without answering should return the same question
+        next_res2 = self.client.post(f'/api/interviews/{interview_id}/next-question/')
+        self.assertEqual(next_res2.status_code, 200)
+        self.assertEqual(next_res2.data['question']['id'], q1_id)
+        
+        # Answer Q1
+        self.client.post(f'/api/interviews/{interview_id}/questions/{q1_id}/answer/', {'answer_text': 'Ans'})
+        
+        # Get Q2
+        next_res3 = self.client.post(f'/api/interviews/{interview_id}/next-question/')
+        self.assertEqual(next_res3.status_code, 200)
+        self.assertEqual(next_res3.data['question']['sequence_number'], 2)
+        

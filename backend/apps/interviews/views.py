@@ -81,6 +81,47 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
                 "error": "An unexpected error occurred during generation."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=['post'], url_path='next-question')
+    def next_question(self, request, pk=None):
+        interview = self.get_object()
+        
+        if interview.status != 'in_progress':
+            return Response(
+                {"error": "Interview is not in progress."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        from apps.ai_services.adaptive_question_engine import get_or_generate_next_question, AdaptiveQuestionError, QuestionLimitReached
+        from .serializers import InterviewQuestionSerializer
+        
+        try:
+            question, total_count = get_or_generate_next_question(interview)
+            
+            serializer = InterviewQuestionSerializer(question)
+            
+            return Response({
+                "status": "success",
+                "question": serializer.data,
+                "progress": {
+                    "current": question.sequence_number,
+                    "total": total_count,
+                    "answered": interview.questions.filter(answer__isnull=False).count()
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except QuestionLimitReached as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except AdaptiveQuestionError as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({
+                "error": "An unexpected error occurred while getting the next question."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         interview = self.get_object()
