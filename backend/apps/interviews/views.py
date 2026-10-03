@@ -33,6 +33,54 @@ class InterviewSessionViewSet(viewsets.ModelViewSet):
             raise ValidationError("Cannot delete an interview that is in progress.")
         instance.delete()
 
+    @action(detail=True, methods=['post'], url_path='generate-questions')
+    def generate_questions(self, request, pk=None):
+        interview = self.get_object()
+        
+        if interview.status not in ['draft', 'ready']:
+            return Response(
+                {"error": "Questions can only be generated when the interview is in draft or ready state."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if interview.question_generation_status == 'processing':
+            return Response(
+                {"error": "Question generation is already in progress."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        interview.question_generation_status = 'processing'
+        interview.save()
+        
+        from apps.ai_services.question_generator import generate_questions_for_interview, QuestionGenerationError
+        
+        try:
+            generated_questions = generate_questions_for_interview(interview)
+            interview.question_generation_status = 'completed'
+            interview.status = 'ready'
+            interview.save()
+            return Response({
+                "interview_id": interview.id,
+                "generation_status": "completed",
+                "question_count": len(generated_questions),
+                "message": "Questions generated successfully."
+            }, status=status.HTTP_200_OK)
+            
+        except QuestionGenerationError as e:
+            interview.question_generation_status = 'failed'
+            interview.question_generation_error = str(e)
+            interview.save()
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            interview.question_generation_status = 'failed'
+            interview.question_generation_error = "An unexpected error occurred."
+            interview.save()
+            return Response({
+                "error": "An unexpected error occurred during generation."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         interview = self.get_object()

@@ -10,10 +10,15 @@ class InterviewSessionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'candidate', 'resume', 'job_role', 'experience_level',
             'interview_type', 'difficulty', 'duration_minutes', 'status',
+            'question_generation_status', 'question_generation_error',
             'created_at', 'updated_at', 'started_at', 'completed_at',
             'question_count', 'answered_count'
         ]
-        read_only_fields = ['id', 'candidate', 'status', 'created_at', 'updated_at', 'started_at', 'completed_at', 'question_count', 'answered_count']
+        read_only_fields = [
+            'id', 'candidate', 'status', 'question_generation_status', 
+            'question_generation_error', 'created_at', 'updated_at', 
+            'started_at', 'completed_at', 'question_count', 'answered_count'
+        ]
 
     def get_question_count(self, obj):
         return obj.questions.count()

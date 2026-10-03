@@ -32,6 +32,13 @@ class InterviewSession(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
+    GENERATION_STATUS_CHOICES = [
+        ('not_started', 'Not Started'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+
     candidate = models.ForeignKey(User, on_delete=models.CASCADE, related_name='interviews')
     resume = models.ForeignKey(Resume, on_delete=models.SET_NULL, null=True, blank=True, related_name='interviews')
     job_role = models.CharField(max_length=255)
@@ -40,6 +47,8 @@ class InterviewSession(models.Model):
     difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES)
     duration_minutes = models.IntegerField(default=30)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    question_generation_status = models.CharField(max_length=20, choices=GENERATION_STATUS_CHOICES, default='not_started')
+    question_generation_error = models.TextField(blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

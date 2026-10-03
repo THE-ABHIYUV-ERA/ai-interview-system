@@ -160,3 +160,29 @@ class InterviewSessionTests(APITestCase):
         self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
         self.assertEqual(patch_res.data['answer_text'], 'Updated Answer')
 
+
+    def test_generate_questions(self):
+        self.client.force_authenticate(user=self.user1)
+        # Assuming resume is processed
+        self.resume1.extracted_text = 'Skills: Python, React'
+        self.resume1.save()
+        
+        data = {
+            'resume': self.resume1.id,
+            'job_role': 'Frontend Developer',
+            'experience_level': 'mid',
+            'interview_type': 'technical',
+            'difficulty': 'medium',
+            'duration_minutes': 45
+        }
+        create_res = self.client.post('/api/interviews/', data)
+        interview_id = create_res.data['id']
+        
+        gen_res = self.client.post(f'/api/interviews/{interview_id}/generate-questions/')
+        self.assertEqual(gen_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(gen_res.data['generation_status'], 'completed')
+        self.assertEqual(gen_res.data['question_count'], 10)
+        
+        # Try generating again
+        gen_res2 = self.client.post(f'/api/interviews/{interview_id}/generate-questions/')
+        self.assertEqual(gen_res2.status_code, status.HTTP_400_BAD_REQUEST)
