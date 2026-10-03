@@ -100,3 +100,63 @@ class InterviewSessionTests(APITestCase):
         }
         response = self.client.post('/api/interviews/', data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_and_fetch_questions(self):
+        self.client.force_authenticate(user=self.user1)
+        data = {
+            'resume': self.resume1.id,
+            'job_role': 'Frontend Developer',
+            'experience_level': 'mid',
+            'interview_type': 'technical',
+            'difficulty': 'medium',
+            'duration_minutes': 45
+        }
+        create_res = self.client.post('/api/interviews/', data)
+        interview_id = create_res.data['id']
+        
+        # Test creating question directly via model since there's no endpoint
+        from apps.interviews.models import InterviewQuestion
+        InterviewQuestion.objects.create(interview_id=interview_id, sequence_number=1, question_text='Q1')
+        InterviewQuestion.objects.create(interview_id=interview_id, sequence_number=2, question_text='Q2')
+        
+        # Fetch questions
+        questions_res = self.client.get(f'/api/interviews/{interview_id}/questions/')
+        self.assertEqual(questions_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(questions_res.data), 2)
+        self.assertEqual(questions_res.data[0]['sequence_number'], 1)
+
+    def test_submit_answer(self):
+        self.client.force_authenticate(user=self.user1)
+        data = {
+            'resume': self.resume1.id,
+            'job_role': 'Dev',
+            'experience_level': 'fresher',
+            'interview_type': 'technical',
+            'difficulty': 'easy',
+            'duration_minutes': 30
+        }
+        create_res = self.client.post('/api/interviews/', data)
+        interview_id = create_res.data['id']
+        
+        from apps.interviews.models import InterviewQuestion
+        q = InterviewQuestion.objects.create(interview_id=interview_id, sequence_number=1, question_text='Q1')
+        
+        # Start interview so we can submit answers
+        self.client.post(f'/api/interviews/{interview_id}/start/')
+        
+        # Submit answer
+        answer_data = {'answer_text': 'My Answer'}
+        ans_res = self.client.post(f'/api/interviews/{interview_id}/questions/{q.id}/answer/', answer_data)
+        self.assertEqual(ans_res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(ans_res.data['answer_text'], 'My Answer')
+        
+        # Prevent duplicate submission
+        ans_res2 = self.client.post(f'/api/interviews/{interview_id}/questions/{q.id}/answer/', answer_data)
+        self.assertEqual(ans_res2.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        # Update answer
+        patch_data = {'answer_text': 'Updated Answer'}
+        patch_res = self.client.patch(f'/api/interviews/{interview_id}/questions/{q.id}/answer/', patch_data)
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_res.data['answer_text'], 'Updated Answer')
+
