@@ -37,6 +37,13 @@ export interface InterviewQuestion {
   difficulty: string;
   expected_duration_seconds: number;
   has_answer?: boolean;
+  answer_text?: string;
+  evaluation?: {
+    status: string;
+    summary: string;
+    structured_data?: any;
+    error_message?: string;
+  };
 }
 
 export interface InterviewAnswer {

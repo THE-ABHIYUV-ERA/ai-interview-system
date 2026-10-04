@@ -100,7 +100,8 @@ class GoogleLogin(APIView):
         
         response = requests.post(token_url, data=data)
         if not response.ok:
-            return Response({"error": "Failed to obtain token from Google"}, status=400)
+            print("Google OAuth Error:", response.text)
+            return Response({"error": "Failed to obtain token from Google", "details": response.text}, status=400)
             
         access_token = response.json().get('access_token')
         

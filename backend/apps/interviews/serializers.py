@@ -40,18 +40,35 @@ class InterviewSessionSerializer(serializers.ModelSerializer):
 
 class InterviewQuestionSerializer(serializers.ModelSerializer):
     has_answer = serializers.SerializerMethodField()
+    answer_text = serializers.SerializerMethodField()
+    evaluation = serializers.SerializerMethodField()
 
     class Meta:
         model = InterviewQuestion
         fields = [
             'id', 'sequence_number', 'question_text', 'question_type', 
             'category', 'difficulty', 'expected_duration_seconds', 
-            'source', 'created_at', 'has_answer'
+            'source', 'created_at', 'has_answer', 'answer_text', 'evaluation'
         ]
         read_only_fields = fields
 
     def get_has_answer(self, obj):
         return hasattr(obj, 'answer')
+        
+    def get_answer_text(self, obj):
+        if hasattr(obj, 'answer'):
+            return obj.answer.answer_text
+        return None
+        
+    def get_evaluation(self, obj):
+        if hasattr(obj, 'answer') and hasattr(obj.answer, 'evaluation'):
+            # Fetch structured data
+            return {
+                'status': obj.answer.evaluation.status,
+                'summary': obj.answer.evaluation.summary,
+                'structured_data': obj.answer.evaluation.structured_data,
+            }
+        return None
 
 
 class InterviewAnswerSerializer(serializers.ModelSerializer):
@@ -70,3 +87,14 @@ class InterviewAnswerSerializer(serializers.ModelSerializer):
         if len(cleaned) > 20000:
             raise serializers.ValidationError("Answer text is too long (maximum 20,000 characters).")
         return cleaned
+
+from .models import InterviewAnswerEvaluation
+
+class InterviewAnswerEvaluationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterviewAnswerEvaluation
+        fields = [
+            'id', 'answer', 'summary', 'structured_data', 'status', 
+            'error_message', 'created_at', 'updated_at'
+        ]
+        read_only_fields = fields

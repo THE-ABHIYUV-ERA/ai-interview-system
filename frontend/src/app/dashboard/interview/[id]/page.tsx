@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Play, LogOut, CheckCircle2, Clock, Brain, Loader2, Mic, MicOff, Volume2, Square } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
+import InterviewReview from "@/components/interview/InterviewReview";
 
 export default function LiveInterviewRoom() {
   const params = useParams();
@@ -436,19 +437,27 @@ export default function LiveInterviewRoom() {
         )}
 
         {(interview.status === "completed" || interview.status === "cancelled") && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-6">
-            <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-full">
-              <CheckCircle2 className="w-12 h-12 text-green-500" />
+          <div className="max-w-4xl mx-auto py-8">
+            <div className="flex flex-col items-center justify-center text-center space-y-6 mb-12">
+              <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-full">
+                <CheckCircle2 className="w-12 h-12 text-green-500" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Interview {interview.status === 'completed' ? 'Completed' : 'Cancelled'}</h2>
+                <p className="text-gray-500 max-w-md mx-auto">
+                  Your interview responses have been recorded. You can review your practice feedback below.
+                </p>
+              </div>
+              <Button size="lg" onClick={() => router.push("/dashboard")} variant="outline">
+                Return to Dashboard
+              </Button>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Interview {interview.status === 'completed' ? 'Completed' : 'Cancelled'}</h2>
-              <p className="text-gray-500 max-w-md mx-auto">
-                Your interview responses have been recorded. The interview report will be available in a later phase.
-              </p>
-            </div>
-            <Button size="lg" onClick={() => router.push("/dashboard")} variant="outline">
-              Return to Dashboard
-            </Button>
+            
+            {interview.status === "completed" && (
+              <div className="mt-8">
+                <InterviewReview interviewId={interview.id} />
+              </div>
+            )}
           </div>
         )}
       </main>

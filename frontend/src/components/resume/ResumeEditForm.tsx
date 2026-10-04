@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
 import { Plus, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import api from '@/lib/api';

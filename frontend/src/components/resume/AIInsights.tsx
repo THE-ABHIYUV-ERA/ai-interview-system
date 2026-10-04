@@ -37,14 +37,15 @@ export function AIInsights({ resume, onUpdate }: AIInsightsProps) {
       const response = await api.post(`/resumes/${resume.id}/analyze/`);
       // Start polling
       onUpdate({ ...resume, analysis_status: 'processing' });
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to start AI analysis.');
+    } catch (err) {
+      const errorResponse = err as { response?: { data?: { error?: string } } };
+      setError(errorResponse.response?.data?.error || 'Failed to start AI analysis.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const renderSection = (title: string, data: any) => {
+  const renderSection = (title: string, data: unknown) => {
     if (!data) return null;
     
     if (Array.isArray(data) && data.length > 0) {
@@ -52,7 +53,7 @@ export function AIInsights({ resume, onUpdate }: AIInsightsProps) {
         <div className="space-y-2">
           <h5 className="text-sm font-medium text-gray-300">{title}</h5>
           <ul className="list-disc list-inside text-sm text-gray-400 space-y-1">
-            {data.map((item, i) => <li key={i}>{item}</li>)}
+            {data.map((item, i) => <li key={i}>{String(item)}</li>)}
           </ul>
         </div>
       );

@@ -210,3 +210,40 @@ class InterviewAnswerView(APIView):
         # We can disable modification of submitted answers as per spec:
         # "prevent editing the submitted answer"
         return Response({"detail": "Editing submitted answers is not permitted."}, status=status.HTTP_403_FORBIDDEN)
+
+from .serializers import InterviewAnswerEvaluationSerializer
+from apps.ai_services.answer_evaluator import evaluate_answer, EvaluationError
+
+class InterviewAnswerEvaluateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, interview_id, question_id):
+        # Validate ownership and relationships
+        question = get_object_or_404(
+            InterviewQuestion,
+            id=question_id,
+            interview_id=interview_id,
+            interview__candidate=request.user
+        )
+        
+        if not hasattr(question, 'answer'):
+            return Response({"detail": "Answer not found."}, status=status.HTTP_404_NOT_FOUND)
+            
+        answer = question.answer
+        
+        if hasattr(answer, 'evaluation'):
+            evaluation = answer.evaluation
+            if evaluation.status == 'processing':
+                return Response({"detail": "Evaluation is already processing."}, status=status.HTTP_400_BAD_REQUEST)
+            if evaluation.status == 'completed':
+                serializer = InterviewAnswerEvaluationSerializer(evaluation)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        try:
+            evaluation = evaluate_answer(answer)
+            serializer = InterviewAnswerEvaluationSerializer(evaluation)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except EvaluationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({"detail": "An unexpected error occurred during evaluation."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

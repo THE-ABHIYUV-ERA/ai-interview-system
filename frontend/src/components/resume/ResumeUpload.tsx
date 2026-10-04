@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { UploadCloud, FileText, CheckCircle, AlertCircle, X, Loader2, RefreshCw, Edit2 } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { UploadCloud, FileText, CheckCircle, AlertCircle, Loader2, RefreshCw, Edit2 } from 'lucide-react';
 import api from '@/lib/api';
 import { Resume } from '@/types/resume';
 import { ResumeEditForm } from './ResumeEditForm';
@@ -16,39 +16,8 @@ export function ResumeUpload() {
   const [isEditing, setIsEditing] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  useEffect(() => {
-    fetchExistingResume();
-  }, []);
 
-  const fetchExistingResume = async () => {
-    try {
-      setLoadingInitial(true);
-      const response = await api.get('/resumes/');
-      const resumes = response.data.results || response.data;
-      if (resumes && resumes.length > 0) {
-        // Assume first resume is the current one
-        setExistingResume(resumes[0]);
-        if (resumes[0].status === 'processing') {
-          setState('PROCESSING');
-          startPolling(resumes[0].id);
-        } else if (resumes[0].status === 'completed') {
-          setState('COMPLETED');
-        } else if (resumes[0].status === 'failed') {
-          setState('FAILED');
-          setError(resumes[0].error_message || 'Resume processing failed.');
-        } else {
-          setState('COMPLETED'); // default idle state if it has a resume
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch resumes', err);
-    } finally {
-      setLoadingInitial(false);
-    }
-  };
-
-  const startPolling = (id: string | number) => {
+  const startPolling = useCallback((id: string | number) => {
     const interval = setInterval(async () => {
       try {
         const response = await api.get(`/resumes/${id}/`);
@@ -70,7 +39,39 @@ export function ResumeUpload() {
       }
     }, 3000);
     return () => clearInterval(interval);
-  };
+  }, []);
+  
+  const fetchExistingResume = useCallback(async () => {
+    try {
+      setLoadingInitial(true);
+      const response = await api.get('/resumes/');
+      const resumes = response.data.results || response.data;
+      if (resumes && resumes.length > 0) {
+        // Assume first resume is the current one
+        setExistingResume(resumes[0]);
+        if (resumes[0].status === 'processing') {
+          setState('PROCESSING');
+          startPolling(resumes[0].id);
+        } else if (resumes[0].status === 'completed') {
+          setState('COMPLETED');
+        } else if (resumes[0].status === 'failed') {
+          setState('FAILED');
+          setError(resumes[0].error_message || 'Resume processing failed.');
+        } else {
+          setState('COMPLETED'); // default idle state if it has a resume
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch resumes');
+    } finally {
+      setLoadingInitial(false);
+    }
+  }, [startPolling]);
+
+  useEffect(() => {
+    fetchExistingResume();
+  }, [fetchExistingResume]);
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -130,10 +131,11 @@ export function ResumeUpload() {
         setState('PROCESSING'); // fallback
         startPolling(data.id);
       }
-    } catch (err: any) {
+    } catch (err) {
+      const errorResponse = err as { response?: { data?: { error?: string } } };
       setState('FAILED');
-      if (err.response?.data?.error) {
-        setError(err.response.data.error);
+      if (errorResponse.response?.data?.error) {
+        setError(errorResponse.response.data.error);
       } else {
         setError('An error occurred during upload. Please try again.');
       }
@@ -151,6 +153,9 @@ export function ResumeUpload() {
   
   const handleDelete = async () => {
       if (!existingResume) return;
+      if (!window.confirm('Deleting this resume will remove its extracted information and AI analysis from your account. Are you sure?')) {
+          return;
+      }
       try {
           await api.delete(`/resumes/${existingResume.id}/`);
           setExistingResume(null);
@@ -312,7 +317,15 @@ export function ResumeUpload() {
               <p className="text-gray-400 text-sm mb-6">{formatFileSize(file.size)}</p>
               <div className="flex items-center justify-center space-x-4">
                 <button
-                  onClick={resetUpload}
+                  onClick={() => {
+                    if (existingResume) {
+                      setState('COMPLETED');
+                      setFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    } else {
+                      resetUpload();
+                    }
+                  }}
                   className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-colors"
                 >
                   Cancel

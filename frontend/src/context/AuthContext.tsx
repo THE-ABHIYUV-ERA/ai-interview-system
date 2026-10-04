@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           const res = await api.get('/auth/me/');
           setUser(res.data);
-        } catch (error) {
+        } catch (_error) {
           console.error("Failed to load user");
         }
       }
