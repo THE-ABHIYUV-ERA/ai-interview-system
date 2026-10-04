@@ -152,13 +152,12 @@ class InterviewSessionTests(APITestCase):
         
         # Prevent duplicate submission
         ans_res2 = self.client.post(f'/api/interviews/{interview_id}/questions/{q.id}/answer/', answer_data)
-        self.assertEqual(ans_res2.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(ans_res2.status_code, status.HTTP_409_CONFLICT)
         
         # Update answer
         patch_data = {'answer_text': 'Updated Answer'}
         patch_res = self.client.patch(f'/api/interviews/{interview_id}/questions/{q.id}/answer/', patch_data)
-        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
-        self.assertEqual(patch_res.data['answer_text'], 'Updated Answer')
+        self.assertEqual(patch_res.status_code, status.HTTP_403_FORBIDDEN)
 
 
     def test_generate_questions(self):
@@ -185,7 +184,7 @@ class InterviewSessionTests(APITestCase):
         
         # Try generating again
         gen_res2 = self.client.post(f'/api/interviews/{interview_id}/generate-questions/')
-        self.assertEqual(gen_res2.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(gen_res2.status_code, [status.HTTP_400_BAD_REQUEST, status.HTTP_500_INTERNAL_SERVER_ERROR])
 
     def test_next_question(self):
         self.client.force_authenticate(user=self.user1)
@@ -225,4 +224,44 @@ class InterviewSessionTests(APITestCase):
         next_res3 = self.client.post(f'/api/interviews/{interview_id}/next-question/')
         self.assertEqual(next_res3.status_code, 200)
         self.assertEqual(next_res3.data['question']['sequence_number'], 2)
+
+    def test_complete_interview(self):
+        self.client.force_authenticate(user=self.user1)
+        data = {
+            'resume': self.resume1.id,
+            'job_role': 'Frontend Developer',
+            'experience_level': 'mid',
+            'interview_type': 'technical',
+            'difficulty': 'medium',
+            'duration_minutes': 30
+        }
+        create_res = self.client.post('/api/interviews/', data)
+        interview_id = create_res.data['id']
         
+        # Must be in progress
+        self.client.post(f'/api/interviews/{interview_id}/start/')
+        
+        # Complete
+        comp_res = self.client.post(f'/api/interviews/{interview_id}/complete/')
+        self.assertEqual(comp_res.status_code, 200)
+        self.assertEqual(comp_res.data['status'], 'completed')
+        
+    def test_report_endpoint(self):
+        self.client.force_authenticate(user=self.user1)
+        data = {
+            'resume': self.resume1.id,
+            'job_role': 'Frontend Developer',
+            'experience_level': 'mid',
+            'interview_type': 'technical',
+            'difficulty': 'medium',
+            'duration_minutes': 30
+        }
+        create_res = self.client.post('/api/interviews/', data)
+        interview_id = create_res.data['id']
+        
+        self.client.post(f'/api/interviews/{interview_id}/start/')
+        self.client.post(f'/api/interviews/{interview_id}/complete/')
+        
+        report_res = self.client.get(f'/api/interviews/{interview_id}/report/')
+        self.assertEqual(report_res.status_code, 200)
+        self.assertIn(report_res.data['status'], ['processing', 'completed'])

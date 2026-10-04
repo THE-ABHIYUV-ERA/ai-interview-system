@@ -298,6 +298,28 @@ export default function LiveInterviewRoom() {
               <span className="text-sm text-gray-400">/ {interview.duration_minutes}:00</span>
             </div>
           )}
+          {interview.status === "in_progress" && (
+            <Button 
+              variant="default" 
+              size="sm" 
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={async () => {
+                if (confirm("Are you sure you want to finish this interview? You can review your final feedback after completion.")) {
+                  stopSpeaking();
+                  stopListening();
+                  try {
+                    await api.post(`/interviews/${params.id}/complete/`);
+                    router.push(`/dashboard/interview/${params.id}/report`);
+                  } catch (err: any) {
+                    alert(err.response?.data?.detail || "Failed to complete interview.");
+                  }
+                }
+              }}
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Complete
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={handleExit}>
             <LogOut className="w-4 h-4 mr-2" />
             Exit
@@ -454,7 +476,15 @@ export default function LiveInterviewRoom() {
             </div>
             
             {interview.status === "completed" && (
-              <div className="mt-8">
+              <div className="mt-8 text-center mb-8">
+                <Button size="lg" onClick={() => router.push(`/dashboard/interview/${interview.id}/report`)} className="bg-blue-600 hover:bg-blue-700">
+                  View Final Report
+                </Button>
+              </div>
+            )}
+            
+            {interview.status === "completed" && (
+              <div className="mt-8 border-t pt-8">
                 <InterviewReview interviewId={interview.id} />
               </div>
             )}

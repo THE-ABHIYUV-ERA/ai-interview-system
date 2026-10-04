@@ -247,3 +247,51 @@ class InterviewAnswerEvaluateView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             return Response({"detail": "An unexpected error occurred during evaluation."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+from .serializers import InterviewReportSerializer
+from apps.ai_services.interview_report_service import generate_interview_report, ReportGenerationError
+from django.db import transaction
+
+class InterviewCompleteView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, interview_id):
+        with transaction.atomic():
+            interview = get_object_or_404(
+                InterviewSession.objects.select_for_update(),
+                id=interview_id, 
+                candidate=request.user
+            )
+            
+            if interview.status not in ['in_progress', 'completed']:
+                return Response({"detail": "Interview cannot be completed from current status."}, status=status.HTTP_400_BAD_REQUEST)
+                
+            if interview.status == 'in_progress':
+                interview.status = 'completed'
+                interview.completed_at = timezone.now()
+                interview.save()
+
+        # Trigger report generation
+        try:
+            report = generate_interview_report(interview)
+            return Response({
+                "interview_id": interview.id,
+                "status": interview.status,
+                "report_status": report.status
+            }, status=status.HTTP_200_OK)
+        except ReportGenerationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({"detail": "An error occurred generating the report."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class InterviewReportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, interview_id):
+        interview = get_object_or_404(InterviewSession, id=interview_id, candidate=request.user)
+        
+        if not hasattr(interview, 'report'):
+            return Response({"detail": "Report not found or not started."}, status=status.HTTP_404_NOT_FOUND)
+            
+        serializer = InterviewReportSerializer(interview.report)
+        return Response(serializer.data, status=status.HTTP_200_OK)

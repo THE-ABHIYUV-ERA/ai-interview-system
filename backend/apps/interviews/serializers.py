@@ -98,3 +98,14 @@ class InterviewAnswerEvaluationSerializer(serializers.ModelSerializer):
             'error_message', 'created_at', 'updated_at'
         ]
         read_only_fields = fields
+
+from .models import InterviewReport
+
+class InterviewReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterviewReport
+        fields = [
+            'id', 'interview', 'status', 'report_data', 
+            'error_message', 'created_at', 'updated_at'
+        ]
+        read_only_fields = fields
